@@ -1,12 +1,9 @@
 name: HackerOoT/F3DEX3
 
 on:
-  - schedule:
-    - cron: "0 12 * * *"
-  - push:
-
-on:
   workflow_dispatch:
+  schedule:
+    - cron: "0 12 * * *"
 
 jobs:
   build:
