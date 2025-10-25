@@ -17,7 +17,8 @@ RUN apt-get update && \
     libpng-dev \
     libxml2-dev \
     gcc-mips-linux-gnu \
-    cmake
+    cmake \
+    zip
 
 # clone the necessary repos
 RUN git clone -b master --single-branch --recursive https://github.com/Kingcom/armips.git
@@ -37,8 +38,8 @@ RUN cd F3DEX3 && \
 
 # create F3DEX3 patches
 COPY in /host_in
-RUN cp -v host_in/roms/oot-eu-mq-dbg.z64 HackerOoT/baseroms/gc-eu-mq-dbg/baserom.z64 && \
-    cp -v host_in/roms/oot-jp-1.2.z64 HackerOoT/baseroms/ntsc-1.2/baserom.z64 && \
+RUN cp -v host_in/baseroms/gc-eu-mq-dbg/baserom.z64 HackerOoT/baseroms/gc-eu-mq-dbg/baserom.z64 && \
+    cp -v host_in/baseroms/ntsc-1.2/baserom.z64 HackerOoT/baseroms/ntsc-1.2/baserom.z64 && \
     cp -v F3DEX3/build/F3DEX3_BrW*/F3DEX3_BrW*.code HackerOoT/F3DEX3/n64/ && \
     cp -v F3DEX3/build/F3DEX3_BrW*/F3DEX3_BrW*.data HackerOoT/F3DEX3/n64/ && \
     cp -v F3DEX3/build/F3DEX3_BrW*/F3DEX3_BrW*.code HackerOoT/F3DEX3/gc/ && \
@@ -51,9 +52,10 @@ RUN cd HackerOoT && \
     $PYTHON tools/decompress_baserom.py gc-eu-mq-dbg && \
     $PYTHON tools/decompress_baserom.py ntsc-1.2 && \
     rm -rf F3DEX3/*/*.bps && \
-    PLATFORM=N64 make create_f3dex3_patches -j$(nproc) && \
-    PLATFORM=GC make create_f3dex3_patches -j$(nproc)
+    make create_f3dex3_patches -j$(nproc) PLATFORM=N64 && \
+    make create_f3dex3_patches -j$(nproc) PLATFORM=GC && \
+    zip F3DEX3_patches.zip F3DEX3/n64/*.bps F3DEX3/gc/*.bps
 
 # export artifacts
 FROM scratch AS artifacts
-COPY --from=build /HackerOoT/F3DEX3/*/*.bps /F3DEX3/
+COPY --from=build /HackerOoT/F3DEX3_patches.zip /
