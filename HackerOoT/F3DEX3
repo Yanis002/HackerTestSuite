@@ -34,7 +34,8 @@ RUN cd armips && \
 # build F3DEX3
 ENV ARMIPS=/armips/build/armips
 RUN cd F3DEX3 && \
-    make all -j$(nproc)
+    make all -j$(nproc) && \
+    cp gbi.h ../gbi.f3dex3.h
 
 # create F3DEX3 patches
 COPY in /host_in
@@ -54,7 +55,7 @@ RUN cd HackerOoT && \
     rm -rf F3DEX3/*/*.bps && \
     make create_f3dex3_patches -j$(nproc) PLATFORM=N64 && \
     make create_f3dex3_patches -j$(nproc) PLATFORM=GC && \
-    zip F3DEX3_patches.zip F3DEX3/n64/*.bps F3DEX3/gc/*.bps
+    zip F3DEX3_patches.zip F3DEX3/n64/*.bps F3DEX3/gc/*.bps /gbi.f3dex3.h
 
 # export artifacts
 FROM scratch AS artifacts
