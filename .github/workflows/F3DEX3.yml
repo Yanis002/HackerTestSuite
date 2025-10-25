@@ -17,6 +17,7 @@ jobs:
 
       - name: Create F3DEX3 patches
         run: |
+          cp -R /baseroms ./HackerOoT/in
           docker buildx build -f HackerOoT/F3DEX3 -o HackerOoT/out ./HackerOoT/
 
       - name: Upload BPS patches
