@@ -1,0 +1,38 @@
+name: HackerOoT/F3DEX3
+
+on:
+  - workflow_dispatch:
+  - schedule:
+    - cron: "0 12 * * *"
+
+jobs:
+  build:
+    container: ghcr.io/yanis002/hackeroot-build-test:main
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Create F3DEX3 patches
+        run: |
+          docker buildx build -f HackerOoT/F3DEX3 -o HackerOoT/out ./HackerOoT/
+
+      - name: Upload BPS patches
+        uses: actions/upload-artifact@v4
+        with:
+          name: f3dex3_patches
+          path: HackerOoT/out/F3DEX3/*.bps
+
+      - name: Update release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: 'Rolling Release'
+          body: Latest F3DEX3 patches here.
+          target_commitish: ci_tests
+          tag_name: 'rolling_release'
+          prerelease: false
+          files: HackerOoT/out/F3DEX3_patches.zip
