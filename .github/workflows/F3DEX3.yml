@@ -11,6 +11,8 @@ jobs:
     container: ghcr.io/yanis002/hackeroot-build-test:main
     runs-on: ubuntu-22.04
 
+    name: Create F3DEX3 patches
+
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -24,7 +26,7 @@ jobs:
           context: ./HackerOoT
           file: ./HackerOoT/F3DEX3
           push: false
-          outputs: "types=local,dest=HackerOoT/out"
+          outputs: "type=local,dest=HackerOoT/out"
 
       - name: Upload BPS patches
         uses: actions/upload-artifact@v4
