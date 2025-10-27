@@ -1,2 +1,4 @@
+resources/scripts/presets
 out/
 *.z64
+logs.txt
