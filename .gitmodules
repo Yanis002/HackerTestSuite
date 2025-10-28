@@ -3,7 +3,7 @@
 	url = https://github.com/zeldaret/oot
 [submodule "resources/HackerOoT"]
 	path = resources/HackerOoT
-	url = https://github.com/HackerN64/HackerOoT/
+	url = https://github.com/HackerN64/HackerOoT
 [submodule "resources/scripts/addons/fast64"]
 	path = resources/scripts/addons/fast64
 	url = https://github.com/fast-64/fast64
