@@ -47,6 +47,11 @@ class Utils:
             bpy.data.objects.remove(obj, do_unlink=True)
         bpy.ops.outliner.orphans_purge(do_recursive=True)
 
+    @staticmethod
+    def open_blend(blend_path: str):
+        bpy.ops.wm.open_mainfile(filepath=blend_path)
+        bpy.context.scene.fast64.settings.internal_background_mode = True
+
 
 class DecompExporter:
     def __init__(self, scene_name: str, is_single_file: bool, cs_total: int, room_total: int, entr_objs: list[bpy.types.Object], draw_config: str, title_card: str):
@@ -180,7 +185,7 @@ class Tests:
             name_single = f"{blend.stem}_{decomp_type.lower()}_singlefile"
             name_multi = f"{blend.stem}_{decomp_type.lower()}_multifile"
 
-            bpy.ops.wm.open_mainfile(filepath=str(blend))
+            Utils.open_blend(str(blend))
             bpy.context.scene.ootDecompPath = str(self.resources_path / decomp_type)
 
             scene_objs = [obj for obj in bpy.data.objects if obj.type == "EMPTY" and obj.ootEmptyType == "Scene"]
