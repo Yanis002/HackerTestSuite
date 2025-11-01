@@ -54,7 +54,17 @@ class Utils:
 
 
 class DecompExporter:
-    def __init__(self, scene_name: str, is_single_file: bool, cs_total: int, room_total: int, entr_objs: list[bpy.types.Object], draw_config: str, title_card: str):
+    def __init__(
+        self,
+        scene_name: str,
+        is_single_file: bool,
+        cs_total: int,
+        room_total: int,
+        entr_objs: list[bpy.types.Object],
+        draw_config: str,
+        title_card: str,
+        has_scene_tex: bool
+    ):
         self.scene_name = scene_name
         self.is_single_file = is_single_file
         self.cs_total = cs_total
@@ -62,6 +72,7 @@ class DecompExporter:
         self.entr_objs = entr_objs
         self.draw_config = draw_config
         self.title_card = title_card
+        self.has_scene_tex = has_scene_tex
 
         self.entr_base = f"ENTR_{self.scene_name.upper()}"
         self.scene_id = f"SCENE_{self.scene_name.upper()}"
@@ -90,6 +101,9 @@ class DecompExporter:
             if self.cs_total > 0:
                 for i in range(self.cs_total):
                     includes.append(f'include "$(BUILD_DIR)/assets/testsuite/scenes/{self.scene_name}/{name}_cs_{i}.o"')
+
+            if self.has_scene_tex:
+                includes.append(f'include "$(BUILD_DIR)/assets/testsuite/scenes/{self.scene_name}/{name}_tex.o"')
 
         segment.extend(includes)
         segment.append("number 2")
@@ -182,11 +196,13 @@ class Tests:
         spec_folder.mkdir(parents=True)
 
         for blend in (self.tests_path / "export").rglob("*.blend"):
-            name_single = f"{blend.stem}_{decomp_type.lower()}_singlefile"
-            name_multi = f"{blend.stem}_{decomp_type.lower()}_multifile"
+            name_single = f"{blend.stem.replace(' ', '_')}_{decomp_type.lower()}_singlefile"
+            name_multi = f"{blend.stem.replace(' ', '_')}_{decomp_type.lower()}_multifile"
 
             Utils.open_blend(str(blend))
+            bpy.context.scene.f3d_type = "F3DEX2/LX2"
             bpy.context.scene.ootDecompPath = str(self.resources_path / decomp_type)
+            bpy.context.scene.fast64.oot.hackerFeaturesEnabled = is_hackeroot
 
             scene_objs = [obj for obj in bpy.data.objects if obj.type == "EMPTY" and obj.ootEmptyType == "Scene"]
 
@@ -208,15 +224,35 @@ class Tests:
 
                 bpy.context.scene.ootSceneExportObj = scene_obj
 
-                Utils.export_scene(True, True, str((out_decomp / "assets" / "testsuite" / "scenes")), name_single)
-                exporter = DecompExporter(name_single, True, len(cs_objs), len(room_objs), entrance_objs, scene_header.sceneTableEntry.drawConfig, scene_header.title_card_name)
+                export_path = out_decomp / "assets" / "testsuite" / "scenes"
+
+                Utils.export_scene(True, True, str(export_path), name_single)
+                exporter = DecompExporter(
+                    name_single,
+                    True,
+                    len(cs_objs),
+                    len(room_objs),
+                    entrance_objs,
+                    scene_header.sceneTableEntry.drawConfig,
+                    scene_header.title_card_name,
+                    False
+                )
                 spec_entries += exporter.get_scene_entries()
                 map_select_entries += exporter.get_map_select_entries()
                 entrance_entries += exporter.get_entrance_entries()
                 scene_entries += exporter.get_scene_table_entry()
 
-                Utils.export_scene(False, True, str((out_decomp / "assets" / "testsuite" / "scenes")), name_multi)
-                exporter = DecompExporter(name_multi, False, len(cs_objs), len(room_objs), entrance_objs, scene_header.sceneTableEntry.drawConfig, scene_header.title_card_name)
+                Utils.export_scene(False, True, str(export_path), name_multi)
+                exporter = DecompExporter(
+                    name_multi,
+                    False,
+                    len(cs_objs),
+                    len(room_objs),
+                    entrance_objs,
+                    scene_header.sceneTableEntry.drawConfig,
+                    scene_header.title_card_name,
+                    len(list((export_path / name_multi).rglob("*_scene_tex.c"))) > 0
+                )
                 spec_entries += exporter.get_scene_entries()
                 map_select_entries += exporter.get_map_select_entries()
                 entrance_entries += exporter.get_entrance_entries()

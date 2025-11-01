@@ -24,7 +24,6 @@ hackeroot_setup: test
 	cp -rv ./out/HackerOoT/assets ../resources/HackerOoT/
 	cp -rv ./out/HackerOoT/include ../resources/HackerOoT/
 	cp -rv ./out/HackerOoT/spec/testsuite.inc ../resources/HackerOoT/spec
-	$(MAKE) -C ../resources/HackerOoT/ clean
 
 hackeroot_run: hackeroot_setup
 	TESTSUITE_MODE=1 $(MAKE) -C ../resources/HackerOoT/ -j$(N_THREADS) run
