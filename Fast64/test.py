@@ -8,6 +8,7 @@ import sys
 import shutil
 
 from pathlib import Path
+from typing import Optional
 
 
 INDENT = " " * 4
@@ -166,15 +167,45 @@ class DecompExporter:
         return f"DEFINE_SCENE({self.scene_name}_scene, {self.title_card}, {self.scene_id}, {self.draw_config}, 0, 0)\n"
 
 
+class ProjectIncludes:
+    def __init__(self, out_decomp: Path):
+        self.spec_folder = out_decomp / "spec"
+        self.inc_folder = out_decomp / "include" / "testsuite"
+        self.spec_entries = str()
+        self.map_select_entries = str()
+        self.entrance_entries = str()
+        self.scene_entries = str()
+
+    def append(self, spec_entry: str, map_select_entries: str, entrance_entries: str, scene_entries: str):
+        self.spec_entries += spec_entry
+        self.map_select_entries += map_select_entries
+        self.entrance_entries += entrance_entries
+        self.scene_entries += scene_entries
+
+    def write(self):
+        path = self.spec_folder / "testsuite.inc"
+        path.write_text(self.spec_entries)
+
+        path = self.inc_folder / "map_select.h"
+        path.write_text(self.map_select_entries)
+
+        path = self.inc_folder / "entrance_table.h"
+        path.write_text(self.entrance_entries)
+
+        path = self.inc_folder / "scene_table.h"
+        path.write_text(self.scene_entries)
+
+
 class Tests:
     """Hosts test functions to try fast64 features"""
 
-    def __init__(self, resources_path: Path, tests_path: Path, export_path: Path, out_path: Path, use_f3dex3: bool):
+    def __init__(self, resources_path: Path, tests_path: Path, export_path: Path, out_path: Path, use_f3dex3: bool, single_blend: Optional[str]):
         self.resources_path = resources_path
         self.tests_path = tests_path
         self.export_path = export_path
         self.out_path = out_path
         self.use_f3dex3 = use_f3dex3
+        self.single_blend = single_blend
 
         print(f"Using:")
         print(f"\tresources_path: {self.resources_path}")
@@ -182,100 +213,96 @@ class Tests:
         print(f"\texport_path: {self.export_path}")
         print(f"\tout_path: {self.out_path}")
         print(f"\tuse_f3dex3: {use_f3dex3}")
+        print(f"\tsingle_blend: {single_blend}")
+
+    def export_process_blend(self, blend: Path, decomp_type: str, is_hackeroot: bool, out_decomp: Path, project_incs: ProjectIncludes):
+        name_single = f"{blend.stem.replace(' ', '_')}_{decomp_type.lower()}_singlefile"
+        name_multi = f"{blend.stem.replace(' ', '_')}_{decomp_type.lower()}_multifile"
+
+        Utils.open_blend(str(blend))
+        bpy.context.scene.f3d_type = "F3DEX3" if self.use_f3dex3 else "F3DEX2/LX2"
+        bpy.context.scene.packed_normals_algorithm = "565"
+        bpy.context.scene.ootDecompPath = str(self.resources_path / decomp_type)
+        bpy.context.scene.fast64.oot.hackerFeaturesEnabled = is_hackeroot
+
+        scene_objs = [obj for obj in bpy.data.objects if obj.type == "EMPTY" and obj.ootEmptyType == "Scene"]
+
+        for scene_obj in scene_objs:
+            scene_header = scene_obj.ootSceneHeader
+
+            room_objs = [obj for obj in scene_obj.children_recursive if obj.type == "EMPTY" and obj.ootEmptyType == "Room"]
+            entrance_objs = [obj for obj in scene_obj.children_recursive if obj.type == "EMPTY" and obj.ootEmptyType == "Entrance"]
+            entrance_objs.sort(key=lambda obj: obj.ootEntranceProperty.spawnIndex)
+
+            # TODO: fix issue with duplicated cutscene names
+            scene_header.writeCutscene = False
+            cs_objs = [
+                # obj for obj in bpy.data.objects
+                # if obj.type == "EMPTY" 
+                # and obj.ootEmptyType == "Cutscene" 
+                # and (scene_header.writeCutscene and scene_header.csWriteObject == obj or obj in scene_header.extraCutscenes)
+            ]
+
+            bpy.context.scene.ootSceneExportObj = scene_obj
+
+            export_path = out_decomp / "assets" / "testsuite" / "scenes"
+
+            Utils.export_scene(True, True, str(export_path), name_single)
+            exporter = DecompExporter(
+                name_single,
+                True,
+                len(cs_objs),
+                len(room_objs),
+                entrance_objs,
+                scene_header.sceneTableEntry.drawConfig,
+                scene_header.title_card_name,
+                False
+            )
+            project_incs.append(
+                exporter.get_scene_entries(),
+                exporter.get_map_select_entries(),
+                exporter.get_entrance_entries(),
+                exporter.get_scene_table_entry(),
+            )
+
+            Utils.export_scene(False, True, str(export_path), name_multi)
+            exporter = DecompExporter(
+                name_multi,
+                False,
+                len(cs_objs),
+                len(room_objs),
+                entrance_objs,
+                scene_header.sceneTableEntry.drawConfig,
+                scene_header.title_card_name,
+                len(list((export_path / name_multi).rglob("*_scene_tex.c"))) > 0
+            )
+            project_incs.append(
+                exporter.get_scene_entries(),
+                exporter.get_map_select_entries(),
+                exporter.get_entrance_entries(),
+                exporter.get_scene_table_entry(),
+            )
 
     def export(self, is_hackeroot: bool):
         """Finds each blend from `Fast64/tests/export/' opens them and tries to export the scene with and without single file enabled"""
 
         decomp_type = "HackerOoT" if is_hackeroot else "oot"
         out_decomp = self.out_path / decomp_type
-        inc_folder = out_decomp / "include" / "testsuite"
-        spec_folder = out_decomp / "spec"
-        spec_entries = str()
-        map_select_entries = str()
-        entrance_entries = str()
-        scene_entries = str()
+        project_incs = ProjectIncludes(out_decomp)
 
         if out_decomp.exists():
             shutil.rmtree(out_decomp)
         out_decomp.mkdir(parents=True)
-        inc_folder.mkdir(parents=True)
-        spec_folder.mkdir(parents=True)
+        project_incs.inc_folder.mkdir(parents=True)
+        project_incs.spec_folder.mkdir(parents=True)
 
-        for blend in (self.tests_path / "export").rglob("*.blend"):
-            name_single = f"{blend.stem.replace(' ', '_')}_{decomp_type.lower()}_singlefile"
-            name_multi = f"{blend.stem.replace(' ', '_')}_{decomp_type.lower()}_multifile"
+        if self.single_blend is not None:
+            self.export_process_blend(self.tests_path / "export" / self.single_blend, decomp_type, is_hackeroot, out_decomp, project_incs)
+        else:
+            for blend in (self.tests_path / "export").rglob("*.blend"):
+                self.export_process_blend(blend, decomp_type, is_hackeroot, out_decomp, project_incs)
 
-            Utils.open_blend(str(blend))
-            bpy.context.scene.f3d_type = "F3DEX3" if self.use_f3dex3 else "F3DEX2/LX2"
-            bpy.context.scene.packed_normals_algorithm = "565"
-            bpy.context.scene.ootDecompPath = str(self.resources_path / decomp_type)
-            bpy.context.scene.fast64.oot.hackerFeaturesEnabled = is_hackeroot
-
-            scene_objs = [obj for obj in bpy.data.objects if obj.type == "EMPTY" and obj.ootEmptyType == "Scene"]
-
-            for scene_obj in scene_objs:
-                scene_header = scene_obj.ootSceneHeader
-
-                room_objs = [obj for obj in scene_obj.children_recursive if obj.type == "EMPTY" and obj.ootEmptyType == "Room"]
-                entrance_objs = [obj for obj in scene_obj.children_recursive if obj.type == "EMPTY" and obj.ootEmptyType == "Entrance"]
-                entrance_objs.sort(key=lambda obj: obj.ootEntranceProperty.spawnIndex)
-
-                # TODO: fix issue with duplicated cutscene names
-                scene_header.writeCutscene = False
-                cs_objs = [
-                    # obj for obj in bpy.data.objects
-                    # if obj.type == "EMPTY" 
-                    # and obj.ootEmptyType == "Cutscene" 
-                    # and (scene_header.writeCutscene and scene_header.csWriteObject == obj or obj in scene_header.extraCutscenes)
-                ]
-
-                bpy.context.scene.ootSceneExportObj = scene_obj
-
-                export_path = out_decomp / "assets" / "testsuite" / "scenes"
-
-                Utils.export_scene(True, True, str(export_path), name_single)
-                exporter = DecompExporter(
-                    name_single,
-                    True,
-                    len(cs_objs),
-                    len(room_objs),
-                    entrance_objs,
-                    scene_header.sceneTableEntry.drawConfig,
-                    scene_header.title_card_name,
-                    False
-                )
-                spec_entries += exporter.get_scene_entries()
-                map_select_entries += exporter.get_map_select_entries()
-                entrance_entries += exporter.get_entrance_entries()
-                scene_entries += exporter.get_scene_table_entry()
-
-                Utils.export_scene(False, True, str(export_path), name_multi)
-                exporter = DecompExporter(
-                    name_multi,
-                    False,
-                    len(cs_objs),
-                    len(room_objs),
-                    entrance_objs,
-                    scene_header.sceneTableEntry.drawConfig,
-                    scene_header.title_card_name,
-                    len(list((export_path / name_multi).rglob("*_scene_tex.c"))) > 0
-                )
-                spec_entries += exporter.get_scene_entries()
-                map_select_entries += exporter.get_map_select_entries()
-                entrance_entries += exporter.get_entrance_entries()
-                scene_entries += exporter.get_scene_table_entry()
-
-        path = spec_folder / "testsuite.inc"
-        path.write_text(spec_entries)
-
-        path = inc_folder / "map_select.h"
-        path.write_text(map_select_entries)
-
-        path = inc_folder / "entrance_table.h"
-        path.write_text(entrance_entries)
-
-        path = inc_folder / "scene_table.h"
-        path.write_text(scene_entries)
+        project_incs.write()
 
 
 def main(args):
@@ -291,7 +318,7 @@ def main(args):
     else:
         export_path = tests_path / "export"
 
-    tests = Tests(resources_path, tests_path, export_path, Path("./out").resolve(), int(args.use_f3dex3) == 1)
+    tests = Tests(resources_path, tests_path, export_path, Path("./out").resolve(), int(args.use_f3dex3) == 1, args.single_blend)
 
     print(f"Using mode: '{args.mode}'")
 
@@ -342,6 +369,12 @@ if __name__ == "__main__":
         "--f3dex3",
         dest="use_f3dex3",
         help="F3DEX3 exports",
+        required=False,
+    )
+    parser.add_argument(
+        "--single",
+        dest="single_blend",
+        help="Process only this blend",
         required=False,
     )
 
