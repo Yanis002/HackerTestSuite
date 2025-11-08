@@ -169,13 +169,19 @@ class DecompExporter:
 class Tests:
     """Hosts test functions to try fast64 features"""
 
-    def __init__(self, resources_path: Path, tests_path: Path, export_path: Path, out_path: Path):
+    def __init__(self, resources_path: Path, tests_path: Path, export_path: Path, out_path: Path, use_f3dex3: bool):
         self.resources_path = resources_path
         self.tests_path = tests_path
         self.export_path = export_path
         self.out_path = out_path
+        self.use_f3dex3 = use_f3dex3
 
-        print(f"Using:\n\tresources_path: {self.resources_path}\n\ttests_path: {self.tests_path}\n\texport_path: {self.export_path}\n\tout_path: {self.out_path}")
+        print(f"Using:")
+        print(f"\tresources_path: {self.resources_path}")
+        print(f"\ttests_path: {self.tests_path}")
+        print(f"\texport_path: {self.export_path}")
+        print(f"\tout_path: {self.out_path}")
+        print(f"\tuse_f3dex3: {use_f3dex3}")
 
     def export(self, is_hackeroot: bool):
         """Finds each blend from `Fast64/tests/export/' opens them and tries to export the scene with and without single file enabled"""
@@ -200,7 +206,8 @@ class Tests:
             name_multi = f"{blend.stem.replace(' ', '_')}_{decomp_type.lower()}_multifile"
 
             Utils.open_blend(str(blend))
-            bpy.context.scene.f3d_type = "F3DEX2/LX2"
+            bpy.context.scene.f3d_type = "F3DEX3" if self.use_f3dex3 else "F3DEX2/LX2"
+            bpy.context.scene.packed_normals_algorithm = "565"
             bpy.context.scene.ootDecompPath = str(self.resources_path / decomp_type)
             bpy.context.scene.fast64.oot.hackerFeaturesEnabled = is_hackeroot
 
@@ -284,7 +291,7 @@ def main(args):
     else:
         export_path = tests_path / "export"
 
-    tests = Tests(resources_path, tests_path, export_path, Path("./out").resolve())
+    tests = Tests(resources_path, tests_path, export_path, Path("./out").resolve(), int(args.use_f3dex3) == 1)
 
     print(f"Using mode: '{args.mode}'")
 
@@ -329,6 +336,12 @@ if __name__ == "__main__":
         "--export-path",
         dest="export_path",
         help="Export path to use",
+        required=False,
+    )
+    parser.add_argument(
+        "--f3dex3",
+        dest="use_f3dex3",
+        help="F3DEX3 exports",
         required=False,
     )
 

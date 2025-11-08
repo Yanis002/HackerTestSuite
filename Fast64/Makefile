@@ -13,10 +13,12 @@ BLENDER_EXE := BLENDER_USER_SCRIPTS=$(USER_SCRIPTS) "$(HACKERTESTSUITE_BLENDER_P
 # OoT version to use (currently unused)
 # VERSION ?= ntsc-1.2
 
+USE_F3DEX3 ?= 0
+
 N_THREADS ?= $(shell nproc)
 
 test:
-	$(BLENDER_EXE) --python test.py -- --mode export --resources-path "../resources" --tests-path "./tests"
+	$(BLENDER_EXE) --python test.py -- --mode export --resources-path "../resources" --tests-path "./tests" --f3dex3 $(USE_F3DEX3)
 
 hackeroot_setup: test
 	rm -rf ../resources/HackerOoT/assets/testsuite
