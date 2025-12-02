@@ -10,8 +10,8 @@ USER_SCRIPTS := $(shell realpath "../resources/scripts")
 # blender starts with background mode enabled, factory startup file loaded and export logs but that need improvements
 BLENDER_EXE := BLENDER_USER_SCRIPTS=$(USER_SCRIPTS) "$(HACKERTESTSUITE_BLENDER_PATH)" --background --factory-startup --log-level -1 --log-file logs.txt
 
-# OoT version to use (currently unused)
-# VERSION ?= ntsc-1.2
+# OoT version to use
+OOT_VERSION ?= ntsc-1.2
 
 USE_F3DEX3 ?= 0
 
@@ -26,11 +26,12 @@ hackeroot_setup: test
 	cp -rv ./out/HackerOoT/assets ../resources/HackerOoT/
 	cp -rv ./out/HackerOoT/include ../resources/HackerOoT/
 	cp -rv ./out/HackerOoT/spec/testsuite.inc ../resources/HackerOoT/spec
+	TESTSUITE_MODE=1 VERSION=$(OOT_VERSION) $(MAKE) -C ../resources/HackerOoT/ clean
 
 hackeroot_run: hackeroot_setup
-	TESTSUITE_MODE=1 $(MAKE) -C ../resources/HackerOoT/ -j$(N_THREADS) run
+	TESTSUITE_MODE=1 VERSION=$(OOT_VERSION) $(MAKE) -C ../resources/HackerOoT/ -j$(N_THREADS) run
 
 hackeroot: hackeroot_setup
-	TESTSUITE_MODE=1 $(MAKE) -C ../resources/HackerOoT/ -j$(N_THREADS)
+	TESTSUITE_MODE=1 VERSION=$(OOT_VERSION) $(MAKE) -C ../resources/HackerOoT/ -j$(N_THREADS)
 
 .PHONY: test hackeroot_setup hackeroot_run hackeroot
